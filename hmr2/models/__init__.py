@@ -7,26 +7,51 @@ from ..configs import CACHE_DIR_4DHUMANS
 
 
 def download_models(folder=CACHE_DIR_4DHUMANS):
-    """Download checkpoints and files for running inference.
+    """Download and extract checkpoints and files for running inference.
+
+    Skips the download entirely if the extracted files are already present.
+    The sentinel file used to verify a complete extraction is:
+      <folder>/logs/train/multiruns/hmr2/0/model_config.yaml
+
+    If a partial (corrupted) tarball is detected — i.e. the tarball exists
+    but the sentinel does not — it is removed so the next run retries cleanly.
     """
     import os
+
+    SENTINEL = os.path.join(folder, "logs/train/multiruns/hmr2/0/model_config.yaml")
+    TARBALL  = os.path.join(folder, "hmr2_data.tar.gz")
+    REMOTE   = "https://www.cs.utexas.edu/~pavlakos/4dhumans/hmr2_data.tar.gz"
+
     os.makedirs(folder, exist_ok=True)
-    download_files = {
-        "hmr2_data.tar.gz"      : ["https://www.cs.utexas.edu/~pavlakos/4dhumans/hmr2_data.tar.gz", folder],
-    }
 
-    for file_name, url in download_files.items():
-        output_path = os.path.join(url[1], file_name)
-        if not os.path.exists(output_path):
-            print("Downloading file: " + file_name)
-            # output = gdown.cached_download(url[0], output_path, fuzzy=True)
-            output = cache_url(url[0], output_path)
-            assert os.path.exists(output_path), f"{output} does not exist"
+    # Already fully extracted — nothing to do.
+    if os.path.exists(SENTINEL):
+        print(f"[hmr2] hmr2_data already extracted, using cached files at: {folder}")
+        return
 
-            # if ends with tar.gz, tar -xzf
-            if file_name.endswith(".tar.gz"):
-                print("Extracting file: " + file_name)
-                os.system("tar -xvf " + output_path + " -C " + url[1])
+    # A tarball without a sentinel means a previous extraction was incomplete.
+    # Remove it so the download starts fresh.
+    if os.path.exists(TARBALL):
+        print("[hmr2] Incomplete extraction detected. Removing corrupted tarball.")
+        os.remove(TARBALL)
+
+    # Download from remote.
+    print("[hmr2] Downloading file: hmr2_data.tar.gz")
+    output = cache_url(REMOTE, TARBALL)
+    assert os.path.exists(TARBALL), f"Download failed: {TARBALL} does not exist"
+
+    # Extract the tarball.
+    print("[hmr2] Extracting hmr2_data.tar.gz ...")
+    ret = os.system(f"tar -xf {TARBALL} -C {folder}")
+    if ret != 0 or not os.path.exists(SENTINEL):
+        if os.path.exists(TARBALL):
+            os.remove(TARBALL)
+        raise RuntimeError(
+            f"[hmr2] Extraction failed (exit={ret}).\n"
+            f"Expected sentinel not found: {SENTINEL}"
+        )
+
+    print("[hmr2] hmr2_data extraction complete.")
 
 def check_smpl_exists():
     import os
