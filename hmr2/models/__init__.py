@@ -18,31 +18,34 @@ def download_models(folder=CACHE_DIR_4DHUMANS):
     """
     import os
 
+    FILENAME = "hmr2_data.tar.gz"
     SENTINEL = os.path.join(folder, "logs/train/multiruns/hmr2/0/model_config.yaml")
-    TARBALL  = os.path.join(folder, "hmr2_data.tar.gz")
-    REMOTE   = "https://www.cs.utexas.edu/~pavlakos/4dhumans/hmr2_data.tar.gz"
+    TARBALL  = os.path.join(folder, FILENAME)
+    REMOTE   = "https://www.cs.utexas.edu/~pavlakos/4dhumans/" + FILENAME
 
     os.makedirs(folder, exist_ok=True)
 
+    base_name, _, _ = FILENAME.partition(".")
+
     # Already fully extracted — nothing to do.
     if os.path.exists(SENTINEL):
-        print(f"[hmr2] hmr2_data already extracted, using cached files at: {folder}")
+        print(f"[hmr2] {base_name} already extracted, using cached files at: {folder}")
         return
 
     # A tarball without a sentinel means a previous extraction was incomplete.
     # Remove it so the download starts fresh.
     if os.path.exists(TARBALL):
-        print("[hmr2] Incomplete extraction detected. Removing corrupted tarball.")
+        print(f"[hmr2] Incomplete extraction detected. Removing corrupted tarball: {FILENAME}")
         os.remove(TARBALL)
 
     # Download from remote.
-    print("[hmr2] Downloading file: hmr2_data.tar.gz")
+    print("[hmr2] Downloading file: " + FILENAME)
     output = cache_url(REMOTE, TARBALL)
     assert os.path.exists(TARBALL), f"Download failed: {TARBALL} does not exist"
 
     # Extract the tarball.
-    print("[hmr2] Extracting hmr2_data.tar.gz ...")
-    ret = os.system(f"tar -xf {TARBALL} -C {folder}")
+    print("[hmr2] Extracting file: " + FILENAME)
+    ret = os.system(f"tar -xvf {TARBALL} -C {folder}")
     if ret != 0 or not os.path.exists(SENTINEL):
         if os.path.exists(TARBALL):
             os.remove(TARBALL)
@@ -51,7 +54,7 @@ def download_models(folder=CACHE_DIR_4DHUMANS):
             f"Expected sentinel not found: {SENTINEL}"
         )
 
-    print("[hmr2] hmr2_data extraction complete.")
+    print(f"[hmr2] {base_name} extraction complete.")
 
 def check_smpl_exists():
     import os
